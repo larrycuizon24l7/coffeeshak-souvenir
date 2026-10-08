@@ -21,47 +21,18 @@
         #switch-btn { position: absolute; bottom: 50px; right: 30px; width: 50px; height: 50px; background: rgba(0,0,0,0.5); border: 2px solid white; border-radius: 50%; color: white; font-size: 24px; cursor: pointer; z-index: 10; display: flex; justify-content: center; align-items: center; }
         #canvas { display: none; }
 
-        /* 🍏 iOS SMART OPTIMIZATION MODAL DISPLAY */
-        #ios-preview-modal {
+        /* PROCESSING OVERLAY SPINNER */
+        #loading-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 100;
-            flex-direction: column;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
             justify-content: center;
             align-items: center;
-            padding: 20px;
-        }
-        #ios-preview-image {
-            max-width: 100%;
-            max-height: 75vh;
-            border-radius: 8px;
-            box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
-            -webkit-touch-callout: default !important; /* Forces iOS to allow image long-press saving */
-            user-select: auto !important;
-        }
-        .modal-instruction {
-            color: #FFFFFF;
+            color: white;
             font-size: 18px;
             font-weight: bold;
-            margin-top: 20px;
-            text-align: center;
-            text-shadow: 0px 2px 5px rgba(0,0,0,0.5);
-            animation: pulse 1.5s infinite;
-        }
-        .close-modal-btn {
-            margin-top: 15px;
-            padding: 10px 25px;
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.4);
-            color: white; border-radius: 20px;
-            font-size: 14px; cursor: pointer;
-        }
-        @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
         }
     </style>
 </head>
@@ -74,12 +45,7 @@
     <button id="switch-btn" onclick="switchCamera()">🔄</button>
 </div>
 
-<!-- DYNAMIC IOS SAVING INTERFACE PORTAL -->
-<div id="ios-preview-modal">
-    <img id="ios-preview-image" src="" alt="Your Souvenir">
-    <div class="modal-instruction">👉 Press and Hold Image to Save! 👈<br><span style="font-size:13px; font-weight:normal; color:#F3E5AB;">(Pindutin at diinan para ma-save sa Photos)</span></div>
-    <button class="close-modal-btn" onclick="closePreview()">Retake Photo 📸</button>
-</div>
+<div id="loading-overlay">Processing Souvenir... 📸</div>
 
 <img id="frame-source" src="" style="display:none;">
 <canvas id="canvas"></canvas>
@@ -89,8 +55,7 @@
     const canvas = document.getElementById('canvas');
     const frameOverlay = document.getElementById('frame-overlay');
     const frameSource = document.getElementById('frame-source');
-    const iosModal = document.getElementById('ios-preview-modal');
-    const iosImage = document.getElementById('ios-preview-image');
+    const loadingOverlay = document.getElementById('loading-overlay');
     
     let currentStream = null;
     let currentFacingMode = "user"; 
@@ -105,7 +70,7 @@
     frameOverlay.src = activeFrameFile;
     frameSource.src = activeFrameFile;
 
-    // Detect if client device runs iOS metadata structures
+    // Device target detection mapping
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     function startCamera(facingMode) {
@@ -126,11 +91,8 @@
 
     startCamera(currentFacingMode);
 
-    function closePreview() {
-        iosModal.style.display = "none";
-    }
-
-    function takePhoto() {
+    async function takePhoto() {
+        loadingOverlay.style.display = "flex";
         const ctx = canvas.getContext('2d');
         const targetWidth = 1080; const targetHeight = 1920;
         canvas.width = targetWidth; canvas.height = targetHeight;
@@ -151,16 +113,35 @@
 
         const imgDataDataURL = canvas.toDataURL('image/png');
 
-        if (isIOS) {
-            /* 🍏 IOS PIPELINE: TRIGGERS HIGH-CONTRAST INTERACTIVE PREVIEW IF DEVICE IS IPHONE */
-            iosImage.src = imgDataDataURL;
-            iosModal.style.display = "flex";
+        if (isIOS && navigator.share) {
+            /* 🍏 ULTRA-SMART IOS TRANSITION: TRIGGERS NATIVE APPLE SHARE SHEET PROMPT FOR SOUVENIRS */
+            try {
+                const response = await fetch(imgDataDataURL);
+                const blob = await response.blob();
+                const file = new File([blob], 'coffeeshak-souvenir.png', { type: 'image/png' });
+                
+                loadingOverlay.style.display = "none";
+                await navigator.share({
+                    files: [file],
+                    title: 'My CoffeeShak Souvenir',
+                    text: 'Captured at CoffeeShak! ☕✨'
+                });
+            } catch (err) {
+                loadingOverlay.style.display = "none";
+                // Fallback fallback link if share window receives runtime blocks
+                const link = document.createElement('a');
+                link.download = 'coffeeshak-souvenir.png';
+                link.href = imgDataDataURL;
+                link.click();
+            }
         } else {
-            /* 🤖 ANDROID PIPELINE: RUNS AUTOMATIC NATIVE DOWNLOAD SILENTLY */
+            /* 🤖 ANDROID PIPELINE: RUNS AUTOMATIC NATIVE BACKGROUND DOWNLOAD SILENTLY */
             const link = document.createElement('a');
-            link.download = 'coffeeshak-souvenir.png';
+            // Dynamically increments file markers to try and bypass browser duplicate warnings
+            link.download = `coffeeshak-${Math.floor(Date.now() / 1000)}.png`;
             link.href = imgDataDataURL;
             link.click();
+            loadingOverlay.style.display = "none";
         }
     }
 </script>
