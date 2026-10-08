@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Souvenir Camera</title>
+    <style>
+        /* SECURE USER INTERFACE ENGINE: LOCKS DOWN IN-APP CONTROLS AND SELECTIONS */
+        * { 
+            margin: 0; padding: 0; box-sizing: border-box; 
+            -webkit-touch-callout: none; /* Disables native callout long-press menus on iOS */
+            -webkit-user-select: none;   /* Disables selection highlighting on Safari */
+            user-select: none;           /* Disables standard copy/paste drag selection */
+        }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+        #camera-container { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .mirror { transform: scaleX(-1); }
+        
+        #frame-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            pointer-events: none; object-fit: cover; z-index: 5; 
+        }
+        
+        #capture-btn { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; background: white; border: 5px solid rgba(0,0,0,0.3); border-radius: 50%; cursor: pointer; z-index: 10; }
+        #switch-btn { position: absolute; bottom: 50px; right: 30px; width: 50px; height: 50px; background: rgba(0,0,0,0.5); border: 2px solid white; border-radius: 50%; color: white; font-size: 24px; cursor: pointer; z-index: 10; display: flex; justify-content: center; align-items: center; }
+        #canvas { display: none; }
+    </style>
+</head>
+<body oncontextmenu="return false;"> <!-- DIRECT EMBED ANTI-RIGHT CLICK SECURITY HOOK -->
+
+<div id="camera-container">
+    <video id="webcam" class="mirror" autoplay playsinline></video>
+    <img id="frame-overlay" src="" alt="Seasonal Frame">
+    <button id="capture-btn" onclick="takePhoto()"></button>
+    <button id="switch-btn" onclick="switchCamera()">🔄</button>
+</div>
+
+<img id="frame-source" src="" style="display:none;">
+<canvas id="canvas"></canvas>
+
+<script>
+    /* SECURITY ENGINE: ACTIVE KEYBOARD LOCKOUTS (Blocks F12, Inspect, Ctrl+U, Ctrl+Shift+I) */
+    document.addEventListener('keydown', function(e) {
+        if (e.keyCode == 123 || 
+            (e.ctrlKey && e.shiftKey && e.keyCode == 73) || 
+            (e.ctrlKey && e.shiftKey && e.keyCode == 67) || 
+            (e.ctrlKey && e.keyCode == 85)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('canvas');
+    const frameOverlay = document.getElementById('frame-overlay');
+    const frameSource = document.getElementById('frame-source');
+    
+    let currentStream = null;
+    let currentFacingMode = "user"; 
+
+    // AUTOMATIC CALENDAR DISTRIBUTION SUB-SYSTEM
+    const currentMonthIndex = new Date().getMonth();
+    const monthlyFrameFiles = [
+        "january.png", "february.png", "march.png", "april.png", "may.png", "june.png",
+        "july.png", "august.png", "september.png", "october.png", "november.png", "december.png"
+    ];
+
+    const activeFrameFile = monthlyFrameFiles[currentMonthIndex];
+    frameOverlay.src = activeFrameFile;
+    frameSource.src = activeFrameFile;
+
+    function startCamera(facingMode) {
+        if (currentStream) { currentStream.getTracks().forEach(track => track.stop()); }
+        if (facingMode === "user") { video.classList.add('mirror'); } else { video.classList.remove('mirror'); }
+
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false 
+        })
+        .then(stream => { currentStream = stream; video.srcObject = stream; })
+        .catch(err => { alert("Please allow Camera Access!"); });
+    }
+
+    function switchCamera() {
+        currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+        startCamera(currentFacingMode);
+    }
+
+    startCamera(currentFacingMode);
+
+    function takePhoto() {
+        const ctx = canvas.getContext('2d');
+        const targetWidth = 1080; const targetHeight = 1920;
+        canvas.width = targetWidth; canvas.height = targetHeight;
+        
+        const videoWidth = video.videoWidth; const videoHeight = video.videoHeight;
+        const videoAspectRatio = videoWidth / videoHeight; const targetAspectRatio = targetWidth / targetHeight;
+        
+        let sourceX = 0; let sourceY = 0; let sourceWidth = videoWidth; let sourceHeight = videoHeight;
+        if (videoAspectRatio > targetAspectRatio) { sourceWidth = videoHeight * targetAspectRatio; sourceX = (videoWidth - sourceWidth) / 2; } 
+        else { sourceHeight = videoWidth / targetAspectRatio; sourceY = (videoHeight - sourceHeight) / 2; }
+
+        ctx.save();
+        if (currentFacingMode === "user") { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+        ctx.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        ctx.drawImage(frameSource, 0, 0, targetWidth, targetHeight);
+
+        const link = document.createElement('a');
+        link.download = 'cafe-souvenir.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+</script>
+</body>
+</html>
